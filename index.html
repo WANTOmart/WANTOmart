@@ -1,63 +1,171 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html>
 <head>
-    <title>Kasir Online</title>
-    <style>
-        body { font-family: Arial; padding: 20px; }
-        input, button { padding: 5px; margin: 5px; }
-        table { border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid black; padding: 8px; }
-    </style>
+<title>WantoMart - Kasir Pro</title>
+<style>
+body { font-family: Arial; padding:20px; background:#f2f2f2; }
+input, button { padding:5px; margin:3px; }
+table { border-collapse: collapse; width:100%; background:white; }
+th, td { border:1px solid #ccc; padding:8px; text-align:center; }
+button { cursor:pointer; }
+h2 { color:#333; }
+.box { background:white; padding:15px; margin-bottom:20px; }
+</style>
 </head>
 <body>
 
-<h2>APLIKASI KASIR ONLINE</h2>
+<h2>WANTOMART - KASIR PRO</h2>
 
+<div class="box">
+<h3>Tambah / Edit Barang</h3>
+<input type="hidden" id="editIndex">
 Nama: <input type="text" id="nama">
-Harga: <input type="number" id="harga">
-Jumlah: <input type="number" id="jumlah">
-<button onclick="tambah()">Tambah</button>
+Harga Beli: <input type="number" id="hargaBeli">
+Harga Jual: <input type="number" id="hargaJual">
+Stok: <input type="number" id="stok">
+Tanggal: <input type="date" id="tanggal">
+<button onclick="simpanBarang()">Simpan</button>
+</div>
 
-<table>
-<thead>
+<div class="box">
+<h3>Data Barang</h3>
+<table id="tabelBarang">
 <tr>
 <th>Nama</th>
-<th>Harga</th>
-<th>Jumlah</th>
-<th>Subtotal</th>
+<th>Beli</th>
+<th>Jual</th>
+<th>Stok</th>
+<th>Tanggal</th>
+<th>Aksi</th>
 </tr>
-</thead>
-<tbody id="list"></tbody>
 </table>
+</div>
 
-<h3>Total: Rp <span id="total">0</span></h3>
+<div class="box">
+<h3>Transaksi</h3>
+Nama: <input type="text" id="beliNama">
+Jumlah: <input type="number" id="beliJumlah">
+<button onclick="transaksi()">Proses</button>
+
+<h3 id="total">Total: Rp 0</h3>
+<h3 id="untung">Untung: Rp 0</h3>
 
 Bayar: <input type="number" id="bayar">
-<button onclick="kembalian()">Hitung</button>
+<button onclick="hitungKembalian()">Hitung</button>
+<h3 id="kembalian">Kembalian: Rp 0</h3>
 
-<h3>Kembalian: Rp <span id="kembali">0</span></h3>
+<button onclick="window.print()">Cetak Struk</button>
+</div>
+
+<div class="box">
+<h3>Laporan</h3>
+<h4 id="modal">Total Modal: Rp 0</h4>
+<h4 id="totalUntungSemua">Total Keuntungan: Rp 0</h4>
+</div>
 
 <script>
-let total = 0;
 
-function tambah(){
-    let nama = document.getElementById("nama").value;
-    let harga = parseInt(document.getElementById("harga").value);
-    let jumlah = parseInt(document.getElementById("jumlah").value);
+let barang = JSON.parse(localStorage.getItem("barang")) || [];
+let totalBelanja = 0;
+let totalUntung = 0;
+let totalUntungSemua = 0;
 
-    let subtotal = harga * jumlah;
-    total += subtotal;
-
-    document.getElementById("total").innerText = total;
-
-    document.getElementById("list").innerHTML +=
-        "<tr><td>"+nama+"</td><td>"+harga+"</td><td>"+jumlah+"</td><td>"+subtotal+"</td></tr>";
+function simpanData(){
+localStorage.setItem("barang", JSON.stringify(barang));
 }
 
-function kembalian(){
-    let bayar = parseInt(document.getElementById("bayar").value);
-    document.getElementById("kembali").innerText = bayar - total;
+function simpanBarang(){
+let index = document.getElementById("editIndex").value;
+let data = {
+nama: nama.value,
+hargaBeli: parseInt(hargaBeli.value),
+hargaJual: parseInt(hargaJual.value),
+stok: parseInt(stok.value),
+tanggal: tanggal.value
+};
+
+if(index===""){
+barang.push(data);
+}else{
+barang[index]=data;
+document.getElementById("editIndex").value="";
 }
+
+simpanData();
+tampilBarang();
+}
+
+function tampilBarang(){
+let tabel=document.getElementById("tabelBarang");
+tabel.innerHTML=`<tr>
+<th>Nama</th><th>Beli</th><th>Jual</th><th>Stok</th><th>Tanggal</th><th>Aksi</th></tr>`;
+
+let totalModal=0;
+
+barang.forEach((b,i)=>{
+totalModal+=b.hargaBeli*b.stok;
+tabel.innerHTML+=`
+<tr>
+<td>${b.nama}</td>
+<td>${b.hargaBeli}</td>
+<td>${b.hargaJual}</td>
+<td>${b.stok}</td>
+<td>${b.tanggal}</td>
+<td>
+<button onclick="editBarang(${i})">Edit</button>
+<button onclick="hapusBarang(${i})">Hapus</button>
+</td>
+</tr>`;
+});
+
+document.getElementById("modal").innerHTML="Total Modal: Rp "+totalModal;
+document.getElementById("totalUntungSemua").innerHTML="Total Keuntungan: Rp "+totalUntungSemua;
+}
+
+function editBarang(i){
+let b=barang[i];
+nama.value=b.nama;
+hargaBeli.value=b.hargaBeli;
+hargaJual.value=b.hargaJual;
+stok.value=b.stok;
+tanggal.value=b.tanggal;
+document.getElementById("editIndex").value=i;
+}
+
+function hapusBarang(i){
+barang.splice(i,1);
+simpanData();
+tampilBarang();
+}
+
+function transaksi(){
+let namaBarang=beliNama.value;
+let jumlah=parseInt(beliJumlah.value);
+
+let item=barang.find(b=>b.nama===namaBarang);
+if(!item){alert("Barang tidak ditemukan");return;}
+if(item.stok<jumlah){alert("Stok tidak cukup");return;}
+
+item.stok-=jumlah;
+totalBelanja=item.hargaJual*jumlah;
+totalUntung=(item.hargaJual-item.hargaBeli)*jumlah;
+totalUntungSemua+=totalUntung;
+
+document.getElementById("total").innerHTML="Total: Rp "+totalBelanja;
+document.getElementById("untung").innerHTML="Untung: Rp "+totalUntung;
+
+simpanData();
+tampilBarang();
+}
+
+function hitungKembalian(){
+let bayar=parseInt(document.getElementById("bayar").value);
+let kembali=bayar-totalBelanja;
+document.getElementById("kembalian").innerHTML="Kembalian: Rp "+kembali;
+}
+
+tampilBarang();
+
 </script>
 
 </body>
