@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kasir Online</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        input, button { padding: 5px; margin: 5px; }
+        table { border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid black; padding: 8px; }
+    </style>
+</head>
+<body>
+
+<h2>APLIKASI KASIR ONLINE</h2>
+
+Nama: <input type="text" id="nama">
+Harga: <input type="number" id="harga">
+Jumlah: <input type="number" id="jumlah">
+<button onclick="tambah()">Tambah</button>
+
+<table>
+<thead>
+<tr>
+<th>Nama</th>
+<th>Harga</th>
+<th>Jumlah</th>
+<th>Subtotal</th>
+</tr>
+</thead>
+<tbody id="list"></tbody>
+</table>
+
+<h3>Total: Rp <span id="total">0</span></h3>
+
+Bayar: <input type="number" id="bayar">
+<button onclick="kembalian()">Hitung</button>
+
+<h3>Kembalian: Rp <span id="kembali">0</span></h3>
+
+<script>
+let total = 0;
+
+function tambah(){
+    let nama = document.getElementById("nama").value;
+    let harga = parseInt(document.getElementById("harga").value);
+    let jumlah = parseInt(document.getElementById("jumlah").value);
+
+    let subtotal = harga * jumlah;
+    total += subtotal;
+
+    document.getElementById("total").innerText = total;
+
+    document.getElementById("list").innerHTML +=
+        "<tr><td>"+nama+"</td><td>"+harga+"</td><td>"+jumlah+"</td><td>"+subtotal+"</td></tr>";
+}
+
+function kembalian(){
+    let bayar = parseInt(document.getElementById("bayar").value);
+    document.getElementById("kembali").innerText = bayar - total;
+}
+</script>
+
+</body>
+</html>
