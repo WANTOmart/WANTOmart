@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
 <title>WantoMart - Kasir Pro</title>
@@ -61,6 +61,9 @@ Bayar: <input type="number" id="bayar">
 <h3>Laporan</h3>
 <h4 id="modal">Total Modal: Rp 0</h4>
 <h4 id="totalUntungSemua">Total Keuntungan: Rp 0</h4>
+<hr>
+<h4>Laporan Stok</h4>
+<div id="laporanKategori">Total Semua Item: 0</div>
 </div>
 
 <script>
@@ -120,6 +123,45 @@ tabel.innerHTML+=`
 
 document.getElementById("modal").innerHTML="Total Modal: Rp "+totalModal;
 document.getElementById("totalUntungSemua").innerHTML="Total Keuntungan: Rp "+totalUntungSemua;
+
+updateLaporanKategori();
+}
+
+function updateLaporanKategori(){
+let totalItem = 0;
+let kategori = {};
+
+barang.forEach(item=>{
+totalItem += parseInt(item.stok);
+let nama = item.nama.toLowerCase();
+let kat = "Lainnya";
+
+if(nama.includes("beras")||nama.includes("gula")||nama.includes("tepung")||nama.includes("garam")||nama.includes("minyak")){
+kat="Sembako";
+}
+else if(nama.includes("air")||nama.includes("fanta")||nama.includes("sprite")||nama.includes("milk")||nama.includes("mizone")||nama.includes("pocari")){
+kat="Minuman";
+}
+else if(nama.includes("oreo")||nama.includes("roma")||nama.includes("biskuat")||nama.includes("tango")||nama.includes("good")){
+kat="Snack";
+}
+else if(nama.includes("lampu")||nama.includes("kabel")||nama.includes("mcb")||nama.includes("saklar")||nama.includes("stop")){
+kat="Listrik";
+}
+else if(nama.includes("pampers")||nama.includes("makuku")||nama.includes("mamypoko")||nama.includes("sweety")){
+kat="Popok & Bayi";
+}
+
+if(!kategori[kat]) kategori[kat]=0;
+kategori[kat]+=parseInt(item.stok);
+});
+
+let html="<b>Total Semua Item: "+totalItem+"</b><br><br>";
+for(let k in kategori){
+html+=k+": "+kategori[k]+" item<br>";
+}
+
+document.getElementById("laporanKategori").innerHTML=html;
 }
 
 function editBarang(i){
@@ -169,4 +211,4 @@ tampilBarang();
 </script>
 
 </body>
-</html>
+  </html>
