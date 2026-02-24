@@ -1,146 +1,186 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>WantoMart - Kasir PRO MAX</title>
+<meta charset="UTF-8">
+<title>WantoMart ULTRA</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2196f3">
+
+<!-- Chart -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
+
 <style>
-body { font-family: Arial; padding:20px; background:#f2f2f2; }
-input, button { padding:6px; margin:4px; }
-table { border-collapse: collapse; width:100%; background:white; }
-th, td { border:1px solid #ccc; padding:8px; text-align:center; }
-button { cursor:pointer; }
-.box { background:white; padding:15px; margin-bottom:20px; }
+body{font-family:Arial;background:#f2f2f2;padding:15px}
+.box{background:white;padding:15px;margin-bottom:15px;border-radius:10px}
+button{background:#2196f3;color:white;border:none;padding:6px 10px;border-radius:6px}
+input,select{padding:5px;margin:3px}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid #ccc;padding:6px;text-align:center}
+.dark{background:#121212;color:white}
+.dark .box{background:#1e1e1e}
+.low{color:red;font-weight:bold}
 </style>
 </head>
 <body>
 
-<h2>WANTOMART - KASIR PRO MAX</h2>
+<h2>🏪 WANTOMART ULTRA</h2>
+<button onclick="toggleDark()">🌙 Dark Mode</button>
 
+<!-- LOGIN -->
+<div id="loginBox" class="box">
+<h3>Login</h3>
+<select id="role">
+<option value="admin">Admin</option>
+<option value="kasir">Kasir</option>
+</select>
+<input type="password" id="password" placeholder="Password">
+<button onclick="login()">Login</button>
+</div>
+
+<!-- TAMBAH BARANG -->
 <div class="box">
 <h3>Tambah Barang</h3>
-Nama: <input type="text" id="nama">
-Barcode: <input type="text" id="barcode">
-Harga Beli: <input type="number" id="hargaBeli">
-Harga Jual: <input type="number" id="hargaJual">
-Stok: <input type="number" id="stok">
+Nama <input id="nama">
+Barcode <input id="barcode">
+Harga Beli <input type="number" id="hargaBeli">
+Harga Jual <input type="number" id="hargaJual">
+Stok <input type="number" id="stok">
 <button onclick="simpanBarang()">Simpan</button>
 </div>
 
+<!-- DATA BARANG -->
 <div class="box">
 <h3>Data Barang</h3>
-<table id="tabelBarang">
-<tr>
-<th>Nama</th>
-<th>Barcode</th>
-<th>Jual</th>
-<th>Stok</th>
-<th>Aksi</th>
-</tr>
-</table>
+<input id="cari" placeholder="Cari..." oninput="tampilBarang()">
+<table id="tabelBarang"></table>
 </div>
 
+<!-- TRANSAKSI -->
 <div class="box">
-<h3>Scan Barang</h3>
+<h3>Transaksi</h3>
+
+<input id="inputManual" placeholder="Scan/Ketik Barcode"
+onkeypress="if(event.key==='Enter')prosesManual()">
+<button onclick="prosesManual()">Tambah</button>
 <button onclick="startScanner()">📷 Scan</button>
-<div id="reader" style="width:300px;"></div>
 
-<h3>Keranjang</h3>
-<table id="keranjangTable">
-<tr>
-<th>Nama</th>
-<th>Qty</th>
-<th>Harga</th>
-<th>Subtotal</th>
-<th>Hapus</th>
-</tr>
-</table>
+<div id="reader" style="width:250px"></div>
 
-<h3>Total: Rp <span id="total">0</span></h3>
+<table id="keranjangTable"></table>
+<h3>Total Rp <span id="total">0</span></h3>
 
-Bayar: <input type="number" id="bayar" oninput="hitungKembalian()">
-<h3>Kembalian: Rp <span id="kembalian">0</span></h3>
+<select id="metodeBayar">
+<option>Cash</option>
+<option>QRIS</option>
+<option>Transfer</option>
+</select>
+
+<input type="number" id="bayar" placeholder="Bayar" oninput="hitungKembalian()">
+<h3>Kembalian Rp <span id="kembalian">0</span></h3>
 
 <button onclick="selesaiTransaksi()">Selesai</button>
+<button onclick="cetakStruk()">🧾 Cetak</button>
+</div>
+
+<!-- LAPORAN -->
+<div class="box">
+<h3>Laporan Hari Ini</h3>
+Total Rp <span id="lapTotal">0</span><br>
+Transaksi <span id="lapJumlah">0</span><br>
+Laba Rp <span id="lapLaba">0</span>
 </div>
 
 <div class="box">
-<h3>Laporan Hari Ini</h3>
-Total Penjualan: Rp <span id="lapTotal">0</span><br>
-Jumlah Transaksi: <span id="lapJumlah">0</span>
+<h3>Grafik Bulanan</h3>
+<canvas id="grafik"></canvas>
 </div>
 
-<script>
-let barang = JSON.parse(localStorage.getItem("barang")) || [];
-let keranjang = [];
-let totalBelanja = 0;
+<button onclick="backupData()">💾 Backup File</button>
 
-function simpanData(){
-localStorage.setItem("barang", JSON.stringify(barang));
+<script>
+let barang=JSON.parse(localStorage.getItem("barang"))||[];
+let keranjang=[];
+let totalBelanja=0;
+let currentRole="";
+
+function toggleDark(){document.body.classList.toggle("dark")}
+
+function login(){
+let role=role.value;
+let pass=password.value;
+if((role=="admin"&&pass=="1234")||(role=="kasir"&&pass=="1111")){
+currentRole=role;
+loginBox.style.display="none";
+}else alert("Password salah");
 }
 
 function simpanBarang(){
 barang.push({
-nama: nama.value,
-barcode: barcode.value,
-hargaBeli: parseInt(hargaBeli.value),
-hargaJual: parseInt(hargaJual.value),
-stok: parseInt(stok.value)
+nama:nama.value,
+barcode:barcode.value,
+hargaBeli:parseInt(hargaBeli.value),
+hargaJual:parseInt(hargaJual.value),
+stok:parseInt(stok.value)
 });
-simpanData();
+localStorage.setItem("barang",JSON.stringify(barang));
 tampilBarang();
 }
 
 function tampilBarang(){
-let tabel=document.getElementById("tabelBarang");
-tabel.innerHTML=`<tr>
-<th>Nama</th><th>Barcode</th><th>Jual</th><th>Stok</th><th>Aksi</th></tr>`;
-barang.forEach((b,i)=>{
-tabel.innerHTML+=`
-<tr>
+let cariVal=cari.value?.toLowerCase()||"";
+let t=document.getElementById("tabelBarang");
+t.innerHTML="<tr><th>Nama</th><th>Barcode</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr>";
+barang.filter(b=>b.nama.toLowerCase().includes(cariVal)||b.barcode.includes(cariVal))
+.forEach((b,i)=>{
+t.innerHTML+=`<tr>
 <td>${b.nama}</td>
 <td>${b.barcode}</td>
 <td>${b.hargaJual}</td>
-<td>${b.stok}</td>
-<td><button onclick="hapusBarang(${i})">Hapus</button></td>
-</tr>`;
-});
+<td class="${b.stok<=5?'low':''}">${b.stok}</td>
+<td>${currentRole=="admin"?`<button onclick="hapusBarang(${i})">Hapus</button>`:"-"}</td>
+</tr>`
+})
 }
 
 function hapusBarang(i){
 barang.splice(i,1);
-simpanData();
+localStorage.setItem("barang",JSON.stringify(barang));
 tampilBarang();
 }
 
+function prosesManual(){
+prosesScan(inputManual.value);
+inputManual.value="";
+}
+
 function startScanner(){
-let html5QrCode = new Html5Qrcode("reader");
-html5QrCode.start(
-{ facingMode:"environment"},
-{ fps:10, qrbox:250},
-(decodedText)=>{
-prosesScan(decodedText);
-});
+new Html5Qrcode("reader").start(
+{facingMode:"environment"},
+{fps:10,qrbox:200},
+decoded=>prosesScan(decoded)
+);
 }
 
 function prosesScan(kode){
 let item=barang.find(b=>b.barcode==kode);
-if(!item) return;
-if(item.stok<=0) return;
-
-item.stok-=1;
+if(!item||item.stok<=0)return;
+item.stok--;
 
 let ada=keranjang.find(k=>k.barcode==kode);
-if(ada){
-ada.qty+=1;
-ada.subtotal=ada.qty*ada.harga;
-}else{
+if(ada){ada.qty++;ada.subtotal=ada.qty*ada.harga;}
+else{
 keranjang.push({
 nama:item.nama,
 barcode:item.barcode,
 harga:item.hargaJual,
+hargaBeli:item.hargaBeli,
 qty:1,
-subtotal:item.hargaJual
+subtotal:item.hargaJual,
+laba:item.hargaJual-item.hargaBeli
 });
 }
 renderKeranjang();
@@ -148,67 +188,82 @@ tampilBarang();
 }
 
 function renderKeranjang(){
-let tabel=document.getElementById("keranjangTable");
-tabel.innerHTML=`<tr>
-<th>Nama</th><th>Qty</th><th>Harga</th><th>Subtotal</th><th>Hapus</th></tr>`;
-
+let t=keranjangTable;
+t.innerHTML="<tr><th>Nama</th><th>Qty</th><th>Subtotal</th></tr>";
 totalBelanja=0;
-
-keranjang.forEach((k,i)=>{
+keranjang.forEach(k=>{
 totalBelanja+=k.subtotal;
-tabel.innerHTML+=`
-<tr>
-<td>${k.nama}</td>
-<td>${k.qty}</td>
-<td>${k.harga}</td>
-<td>${k.subtotal}</td>
-<td><button onclick="hapusItem(${i})">X</button></td>
-</tr>`;
+t.innerHTML+=`<tr><td>${k.nama}</td><td>${k.qty}</td><td>${k.subtotal}</td></tr>`;
 });
-
-document.getElementById("total").innerText=totalBelanja;
-}
-
-function hapusItem(i){
-let item=keranjang[i];
-let data=barang.find(b=>b.barcode==item.barcode);
-data.stok+=item.qty;
-keranjang.splice(i,1);
-renderKeranjang();
-tampilBarang();
+total.innerText=totalBelanja;
 }
 
 function hitungKembalian(){
-let bayar=parseInt(document.getElementById("bayar").value)||0;
-let kembali=bayar-totalBelanja;
-document.getElementById("kembalian").innerText=kembali>0?kembali:0;
+let bayarVal=parseInt(bayar.value)||0;
+kembalian.innerText=bayarVal-totalBelanja;
 }
 
 function selesaiTransaksi(){
-if(keranjang.length==0) return;
-
-let laporan=JSON.parse(localStorage.getItem("laporan"))||{total:0,jumlah:0};
-laporan.total+=totalBelanja;
-laporan.jumlah+=1;
+if(!keranjang.length)return;
+let today=new Date().toISOString().split("T")[0];
+let laporan=JSON.parse(localStorage.getItem("laporan"))||{};
+if(!laporan[today])laporan[today]={total:0,jumlah:0,laba:0};
+laporan[today].total+=totalBelanja;
+laporan[today].jumlah++;
+laporan[today].laba+=keranjang.reduce((s,i)=>s+(i.laba*i.qty),0);
 localStorage.setItem("laporan",JSON.stringify(laporan));
-
 keranjang=[];
 renderKeranjang();
-document.getElementById("bayar").value="";
-hitungKembalian();
 updateLaporan();
+updateGrafik();
 }
 
 function updateLaporan(){
-let laporan=JSON.parse(localStorage.getItem("laporan"))||{total:0,jumlah:0};
-document.getElementById("lapTotal").innerText=laporan.total;
-document.getElementById("lapJumlah").innerText=laporan.jumlah;
+let today=new Date().toISOString().split("T")[0];
+let laporan=JSON.parse(localStorage.getItem("laporan"))||{};
+let d=laporan[today]||{total:0,jumlah:0,laba:0};
+lapTotal.innerText=d.total;
+lapJumlah.innerText=d.jumlah;
+lapLaba.innerText=d.laba;
+}
+
+function updateGrafik(){
+let laporan=JSON.parse(localStorage.getItem("laporan"))||{};
+let bulanData={};
+for(let t in laporan){
+let b=t.substring(0,7);
+bulanData[b]=(bulanData[b]||0)+laporan[t].total;
+}
+new Chart(grafik,{
+type:'bar',
+data:{labels:Object.keys(bulanData),
+datasets:[{label:'Penjualan Bulanan',data:Object.values(bulanData)}]}
+});
+}
+
+function cetakStruk(){
+let isi="<center><img src='logo.png' width='80'><br><b>WANTOMART</b></center><hr>";
+keranjang.forEach(k=>{
+isi+=`${k.nama} x${k.qty} = ${k.subtotal}<br>`;
+});
+isi+="<hr>Total "+totalBelanja;
+let w=window.open("");
+w.document.write(isi);
+w.print();
+}
+
+function backupData(){
+let data={barang,laporan:localStorage.getItem("laporan")};
+let blob=new Blob([JSON.stringify(data)],{type:"application/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="backup_wantomart.json";
+a.click();
 }
 
 tampilBarang();
 updateLaporan();
+updateGrafik();
 </script>
-
 </body>
 </html>
-
