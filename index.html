@@ -18,6 +18,242 @@ th,td{border:1px solid #ccc;padding:6px;text-align:center}
 .low{color:red;font-weight:bold}
 </style>
 </head>
+<body>
+
+<h2>🏪 WANTOMART ULTRA</h2>
+
+<!-- TAMBAH BARANG -->
+<div class="box">
+<h3>Tambah Barang</h3>
+<input id="nama" placeholder="Nama">
+<input id="barcode" placeholder="Barcode">
+<button onclick="scanTambah()">📷 Scan</button><br>
+<input id="hargaBeli" type="number" placeholder="Harga Beli">
+<input id="hargaJual" type="number" placeholder="Harga Jual">
+<input id="stok" type="number" placeholder="Stok"><br>
+<button onclick="simpanBarang()">Simpan</button>
+<div id="readerTambah" style="width:250px"></div>
+</div>
+
+<!-- DATA BARANG -->
+<div class="box">
+<h3>Data Barang</h3>
+<input id="cari" placeholder="Cari..." oninput="tampilBarang()">
+<table id="tabelBarang"></table>
+<h3>Total Modal: Rp <span id="totalModal">0</span></h3>
+</div>
+
+<!-- TRANSAKSI -->
+<div class="box">
+<h3>Transaksi</h3>
+<input id="inputManual" placeholder="Scan / Nama / Barcode" onkeypress="if(event.key==='Enter')prosesManual()">
+<button onclick="prosesManual()">Tambah</button>
+<button onclick="startScanner()">📷 Scan</button>
+
+<div id="reader" style="width:250px"></div>
+
+<table id="keranjangTable"></table>
+<h3>Total Rp <span id="total">0</span></h3>
+
+<select id="metode" onchange="gantiMetode()">
+<option value="cash">Cash</option>
+<option value="qris">QRIS</option>
+</select>
+
+<div id="areaBayar">
+<input id="bayar" type="number" placeholder="Bayar" oninput="hitungKembalian()">
+<h3>Kembalian Rp <span id="kembalian">0</span></h3>
+</div>
+
+<div id="statusQRIS" style="display:none">
+<h3>📱 Pembayaran QRIS</h3>
+<p>Status: Menunggu pembayaran...</p>
+<button onclick="bayarQRIS()">✅ Sudah Dibayar</button>
+</div>
+
+<button onclick="selesaiTransaksi()">Selesai</button>
+</div>
+
+<script>
+// DATA
+let barang = JSON.parse(localStorage.getItem("barang")) || [];
+let keranjang = [];
+let totalBelanja = 0;
+
+// 🔊 AUDIO
+const beep = new Audio("https://www.soundjay.com/button/sounds/beep-07.mp3");
+const beepError = new Audio("https://www.soundjay.com/button/sounds/beep-10.mp3");
+
+// 🔹 Init Audio Mobile
+document.addEventListener('click', ()=>{
+  beep.play().catch(()=>{}); beep.pause(); beep.currentTime=0;
+  beepError.play().catch(()=>{}); beepError.pause(); beepError.currentTime=0;
+},{once:true});
+
+// SIMPAN BARANG
+function simpanBarang(){
+barang.push({
+nama: nama.value,
+barcode: barcode.value,
+hargaBeli: parseInt(hargaBeli.value)||0,
+hargaJual: parseInt(hargaJual.value)||0,
+stok: parseInt(stok.value)||0
+});
+localStorage.setItem("barang", JSON.stringify(barang));
+tampilBarang();
+}
+
+// TAMPIL BARANG
+function tampilBarang(){
+let cariVal = document.getElementById("cari").value.toLowerCase();
+let t = document.getElementById("tabelBarang");
+t.innerHTML = "<tr><th>Nama</th><th>Barcode</th><th>Jual</th><th>Stok</th><th>Modal</th><th>Aksi</th></tr>";
+
+barang
+.filter(b=>b.nama.toLowerCase().includes(cariVal)||b.barcode.includes(cariVal))
+.forEach((b,i)=>{
+t.innerHTML += `
+<tr>
+<td>${b.nama}</td>
+<td>${b.barcode}</td>
+<td>${b.hargaJual}</td>
+<td class="${b.stok<=5?'low':''}">${b.stok}</td>
+<td>${b.hargaBeli * b.stok}</td>
+<td>
+<button onclick="editBarang(${i})">Edit</button>
+<button onclick="hapusBarang(${i})">Hapus</button>
+</td>
+</tr>`;
+});
+hitungModal();
+}
+
+// EDIT & HAPUS
+function editBarang(i){
+let b = barang[i];
+let namaBaru = prompt("Nama", b.nama);
+let beli = prompt("Harga Beli", b.hargaBeli);
+let jual = prompt("Harga Jual", b.hargaJual);
+let stokBaru = prompt("Stok", b.stok);
+if(namaBaru!==null){
+barang[i]={...b,nama:namaBaru,hargaBeli:parseInt(beli)||0,hargaJual:parseInt(jual)||0,stok:parseInt(stokBaru)||0};
+localStorage.setItem("barang", JSON.stringify(barang));
+tampilBarang();
+}
+}
+function hapusBarang(i){
+if(confirm("Yakin hapus?")){
+barang.splice(i,1);
+localStorage.setItem("barang", JSON.stringify(barang));
+tampilBarang();
+}
+}
+
+// TOTAL MODAL
+function hitungModal(){
+let total=0;
+barang.forEach(b=> total+=b.hargaBeli*b.stok);
+totalModal.innerText=total;
+}
+
+// SCANNER TAMBAH
+let scannerTambah;
+function scanTambah(){
+if(scannerTambah) scannerTambah.stop();
+scannerTambah = new Html5Qrcode("readerTambah");
+scannerTambah.start(
+{ facingMode:"environment" },
+{ fps:10, qrbox:200 },
+text=>{ barcode.value=text; scannerTambah.stop(); });
+}
+
+// SCANNER TRANSAKSI
+let scanner;
+function startScanner(){
+if(scanner) scanner.stop();
+scanner = new Html5Qrcode("reader");
+scanner.start({ facingMode:"environment" },{ fps:10, qrbox:250 }, text=>prosesScan(text));
+}
+
+// INPUT MANUAL
+function prosesManual(){
+let input = inputManual.value.toLowerCase();
+let item = barang.find(b=>b.barcode==input || b.nama.toLowerCase().includes(input));
+if(item){prosesScan(item.barcode);}
+else{beepError.play(); alert("Barang tidak ditemukan");}
+inputManual.value="";
+}
+
+// PROSES SCAN + BUNYI
+function prosesScan(kode){
+let item = barang.find(b=>b.barcode==kode);
+if(!item || item.stok<=0){beepError.play(); return;}
+beep.currentTime=0; beep.play();
+
+item.stok--;
+let ada = keranjang.find(k=>k.barcode==kode);
+if(ada){ada.qty++; ada.subtotal=ada.qty*ada.harga;}
+else{keranjang.push({nama:item.nama,barcode:item.barcode,harga:item.hargaJual,qty:1,subtotal:item.hargaJual});}
+
+renderKeranjang();
+tampilBarang();
+}
+
+// RENDER KERANJANG
+function renderKeranjang(){
+let t = document.getElementById("keranjangTable");
+t.innerHTML="<tr><th>Nama</th><th>Qty</th><th>Subtotal</th></tr>";
+totalBelanja=0;
+keranjang.forEach(k=>{ totalBelanja+=k.subtotal; t.innerHTML+=`<tr><td>${k.nama}</td><td>${k.qty}</td><td>${k.subtotal}</td></tr>`; });
+total.innerText=totalBelanja;
+}
+
+// METODE BAYAR
+function gantiMetode(){
+let metode = document.getElementById("metode").value;
+if(metode=="cash"){ areaBayar.style.display="block"; statusQRIS.style.display="none"; }
+else{ areaBayar.style.display="none"; statusQRIS.style.display="block"; }
+}
+function bayarQRIS(){ alert("Pembayaran QRIS berhasil!"); kembalian.innerText=0; }
+
+// KEMBALIAN
+function hitungKembalian(){
+if(metode.value=="cash"){ let bayarVal=parseInt(bayar.value)||0; kembalian.innerText=bayarVal-totalBelanja; }
+else{kembalian.innerText=0;}
+}
+
+// SELESAI
+function selesaiTransaksi(){
+if(keranjang.length==0) return;
+if(metode.value=="cash" && (parseInt(bayar.value)||0)<totalBelanja){ alert("Uang kurang!"); return; }
+alert("Transaksi berhasil!");
+keranjang=[]; renderKeranjang(); bayar.value=""; kembalian.innerText=0;
+}
+
+// INIT
+tampilBarang();
+</script>
+</body>
+</html><!DOCTYPE html>
+<html>
+<head>
+<title>WantoMart ULTRA</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+body{font-family:Arial;background:#f2f2f2;padding:15px}
+.box{background:white;padding:15px;margin-bottom:15px;border-radius:10px}
+button{background:#2196f3;color:white;border:none;padding:6px 10px;border-radius:6px;cursor:pointer}
+input,select{padding:5px;margin:3px}
+table{width:100%;border-collapse:collapse;background:white}
+th,td{border:1px solid #ccc;padding:6px;text-align:center}
+.low{color:red;font-weight:bold}
+</style>
+</head>
 
 <body>
 
