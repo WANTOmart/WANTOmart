@@ -12,7 +12,7 @@
 body{font-family:Arial;background:#f2f2f2;padding:15px}
 .box{background:white;padding:15px;margin-bottom:15px;border-radius:10px}
 button{background:#2196f3;color:white;border:none;padding:6px 10px;border-radius:6px;cursor:pointer}
-input{padding:5px;margin:3px}
+input,select{padding:5px;margin:3px}
 table{width:100%;border-collapse:collapse;background:white}
 th,td{border:1px solid #ccc;padding:6px;text-align:center}
 .low{color:red;font-weight:bold}
@@ -42,15 +42,16 @@ th,td{border:1px solid #ccc;padding:6px;text-align:center}
 <h3>Data Barang</h3>
 <input id="cari" placeholder="Cari..." oninput="tampilBarang()">
 <table id="tabelBarang"></table>
-
 <h3>Total Modal: Rp <span id="totalModal">0</span></h3>
 </div>
 
 <!-- TRANSAKSI -->
 <div class="box">
 <h3>Transaksi</h3>
-<input id="inputManual" placeholder="Scan/Ketik Barcode"
+
+<input id="inputManual" placeholder="Scan / Nama / Barcode"
 onkeypress="if(event.key==='Enter')prosesManual()">
+
 <button onclick="prosesManual()">Tambah</button>
 <button onclick="startScanner()">📷 Scan</button>
 
@@ -59,8 +60,21 @@ onkeypress="if(event.key==='Enter')prosesManual()">
 <table id="keranjangTable"></table>
 <h3>Total Rp <span id="total">0</span></h3>
 
+<select id="metode" onchange="gantiMetode()">
+<option value="cash">Cash</option>
+<option value="qris">QRIS</option>
+</select>
+
+<div id="areaBayar">
 <input id="bayar" type="number" placeholder="Bayar" oninput="hitungKembalian()">
 <h3>Kembalian Rp <span id="kembalian">0</span></h3>
+</div>
+
+<div id="statusQRIS" style="display:none">
+<h3>📱 Pembayaran QRIS</h3>
+<p>Status: Menunggu pembayaran...</p>
+<button onclick="bayarQRIS()">✅ Sudah Dibayar</button>
+</div>
 
 <button onclick="selesaiTransaksi()">Selesai</button>
 </div>
@@ -84,7 +98,7 @@ localStorage.setItem("barang", JSON.stringify(barang));
 tampilBarang();
 }
 
-// TAMPIL BARANG + MODAL
+// TAMPIL BARANG
 function tampilBarang(){
 let cariVal = document.getElementById("cari").value.toLowerCase();
 let t = document.getElementById("tabelBarang");
@@ -143,13 +157,11 @@ tampilBarang();
 }
 }
 
-// HITUNG MODAL
+// MODAL
 function hitungModal(){
 let total=0;
-barang.forEach(b=>{
-total += b.hargaBeli * b.stok;
-});
-document.getElementById("totalModal").innerText = total;
+barang.forEach(b=> total+=b.hargaBeli*b.stok);
+totalModal.innerText=total;
 }
 
 // SCANNER TAMBAH
@@ -162,7 +174,7 @@ scannerTambah.start(
 { facingMode:"environment"},
 { fps:10, qrbox:200},
 (text)=>{
-barcode.value = text;
+barcode.value=text;
 scannerTambah.stop();
 });
 }
@@ -180,9 +192,21 @@ scanner.start(
 );
 }
 
-// INPUT MANUAL
+// INPUT MANUAL (NAMA / BARCODE)
 function prosesManual(){
-prosesScan(inputManual.value);
+let input = inputManual.value.toLowerCase();
+
+let item = barang.find(b =>
+b.barcode == input ||
+b.nama.toLowerCase().includes(input)
+);
+
+if(item){
+prosesScan(item.barcode);
+}else{
+alert("Barang tidak ditemukan");
+}
+
 inputManual.value="";
 }
 
@@ -212,7 +236,7 @@ renderKeranjang();
 tampilBarang();
 }
 
-// RENDER KERANJANG
+// RENDER
 function renderKeranjang(){
 let t = document.getElementById("keranjangTable");
 t.innerHTML="<tr><th>Nama</th><th>Qty</th><th>Subtotal</th></tr>";
@@ -231,14 +255,53 @@ t.innerHTML+=`<tr>
 total.innerText=totalBelanja;
 }
 
+// METODE
+function gantiMetode(){
+let metode = document.getElementById("metode").value;
+
+if(metode=="cash"){
+areaBayar.style.display="block";
+statusQRIS.style.display="none";
+}else{
+areaBayar.style.display="none";
+statusQRIS.style.display="block";
+}
+}
+
+// QRIS
+function bayarQRIS(){
+alert("Pembayaran QRIS berhasil!");
+kembalian.innerText=0;
+}
+
 // KEMBALIAN
 function hitungKembalian(){
+let metode = metode.value;
+
+if(metode=="cash"){
 let bayarVal=parseInt(bayar.value)||0;
 kembalian.innerText=bayarVal-totalBelanja;
+}else{
+kembalian.innerText=0;
+}
 }
 
 // SELESAI
 function selesaiTransaksi(){
+if(keranjang.length==0) return;
+
+let metode = metode.value;
+
+if(metode=="cash"){
+let bayarVal=parseInt(bayar.value)||0;
+if(bayarVal<totalBelanja){
+alert("Uang kurang!");
+return;
+}
+}
+
+alert("Transaksi berhasil!");
+
 keranjang=[];
 renderKeranjang();
 bayar.value="";
