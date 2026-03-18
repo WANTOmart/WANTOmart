@@ -80,9 +80,14 @@ onkeypress="if(event.key==='Enter')prosesManual()">
 </div>
 
 <script>
+// DATA
 let barang = JSON.parse(localStorage.getItem("barang")) || [];
 let keranjang = [];
 let totalBelanja = 0;
+
+// 🔊 AUDIO
+const beep = new Audio("https://www.soundjay.com/button/sounds/beep-07.mp3");
+const beepError = new Audio("https://www.soundjay.com/button/sounds/beep-10.mp3");
 
 // SIMPAN BARANG
 function simpanBarang(){
@@ -93,7 +98,6 @@ hargaBeli: parseInt(hargaBeli.value)||0,
 hargaJual: parseInt(hargaJual.value)||0,
 stok: parseInt(stok.value)||0
 });
-
 localStorage.setItem("barang", JSON.stringify(barang));
 tampilBarang();
 }
@@ -102,7 +106,6 @@ tampilBarang();
 function tampilBarang(){
 let cariVal = document.getElementById("cari").value.toLowerCase();
 let t = document.getElementById("tabelBarang");
-
 t.innerHTML = "<tr><th>Nama</th><th>Barcode</th><th>Jual</th><th>Stok</th><th>Modal</th><th>Aksi</th></tr>";
 
 barang
@@ -121,14 +124,12 @@ t.innerHTML += `
 </td>
 </tr>`;
 });
-
 hitungModal();
 }
 
-// EDIT
+// EDIT & HAPUS
 function editBarang(i){
 let b = barang[i];
-
 let namaBaru = prompt("Nama", b.nama);
 let beli = prompt("Harga Beli", b.hargaBeli);
 let jual = prompt("Harga Jual", b.hargaJual);
@@ -142,13 +143,10 @@ hargaBeli:parseInt(beli)||0,
 hargaJual:parseInt(jual)||0,
 stok:parseInt(stokBaru)||0
 };
-
 localStorage.setItem("barang", JSON.stringify(barang));
 tampilBarang();
 }
 }
-
-// HAPUS
 function hapusBarang(i){
 if(confirm("Yakin hapus?")){
 barang.splice(i,1);
@@ -157,7 +155,7 @@ tampilBarang();
 }
 }
 
-// MODAL
+// TOTAL MODAL
 function hitungModal(){
 let total=0;
 barang.forEach(b=> total+=b.hargaBeli*b.stok);
@@ -168,11 +166,10 @@ totalModal.innerText=total;
 let scannerTambah;
 function scanTambah(){
 if(scannerTambah) scannerTambah.stop();
-
 scannerTambah = new Html5Qrcode("readerTambah");
 scannerTambah.start(
-{ facingMode:"environment"},
-{ fps:10, qrbox:200},
+{ facingMode:"environment" },
+{ fps:10, qrbox:200 },
 (text)=>{
 barcode.value=text;
 scannerTambah.stop();
@@ -183,42 +180,42 @@ scannerTambah.stop();
 let scanner;
 function startScanner(){
 if(scanner) scanner.stop();
-
 scanner = new Html5Qrcode("reader");
 scanner.start(
-{ facingMode:"environment"},
-{ fps:10, qrbox:250},
+{ facingMode:"environment" },
+{ fps:10, qrbox:250 },
 (text)=>prosesScan(text)
 );
 }
 
-// INPUT MANUAL (NAMA / BARCODE)
+// INPUT MANUAL
 function prosesManual(){
 let input = inputManual.value.toLowerCase();
-
-let item = barang.find(b =>
-b.barcode == input ||
-b.nama.toLowerCase().includes(input)
-);
-
+let item = barang.find(b => b.barcode == input || b.nama.toLowerCase().includes(input));
 if(item){
 prosesScan(item.barcode);
 }else{
+beepError.play();
 alert("Barang tidak ditemukan");
 }
-
 inputManual.value="";
 }
 
-// PROSES SCAN
+// PROSES SCAN + BUNYI
 function prosesScan(kode){
 let item = barang.find(b=>b.barcode==kode);
-if(!item || item.stok<=0) return;
+if(!item || item.stok<=0){
+beepError.play();
+return;
+}
+
+// ✅ beep sukses
+beep.currentTime = 0;
+beep.play();
 
 item.stok--;
 
 let ada = keranjang.find(k=>k.barcode==kode);
-
 if(ada){
 ada.qty++;
 ada.subtotal = ada.qty * ada.harga;
@@ -236,13 +233,12 @@ renderKeranjang();
 tampilBarang();
 }
 
-// RENDER
+// RENDER KERANJANG
 function renderKeranjang(){
 let t = document.getElementById("keranjangTable");
 t.innerHTML="<tr><th>Nama</th><th>Qty</th><th>Subtotal</th></tr>";
 
 totalBelanja=0;
-
 keranjang.forEach(k=>{
 totalBelanja+=k.subtotal;
 t.innerHTML+=`<tr>
@@ -251,14 +247,12 @@ t.innerHTML+=`<tr>
 <td>${k.subtotal}</td>
 </tr>`;
 });
-
 total.innerText=totalBelanja;
 }
 
-// METODE
+// METODE BAYAR
 function gantiMetode(){
 let metode = document.getElementById("metode").value;
-
 if(metode=="cash"){
 areaBayar.style.display="block";
 statusQRIS.style.display="none";
@@ -276,9 +270,8 @@ kembalian.innerText=0;
 
 // KEMBALIAN
 function hitungKembalian(){
-let metode = metode.value;
-
-if(metode=="cash"){
+let metodeVal = metode.value;
+if(metodeVal=="cash"){
 let bayarVal=parseInt(bayar.value)||0;
 kembalian.innerText=bayarVal-totalBelanja;
 }else{
@@ -289,19 +282,12 @@ kembalian.innerText=0;
 // SELESAI
 function selesaiTransaksi(){
 if(keranjang.length==0) return;
-
-let metode = metode.value;
-
-if(metode=="cash"){
-let bayarVal=parseInt(bayar.value)||0;
-if(bayarVal<totalBelanja){
+let metodeVal = metode.value;
+if(metodeVal=="cash" && (parseInt(bayar.value)||0)<totalBelanja){
 alert("Uang kurang!");
 return;
 }
-}
-
 alert("Transaksi berhasil!");
-
 keranjang=[];
 renderKeranjang();
 bayar.value="";
