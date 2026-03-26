@@ -39,12 +39,12 @@
 let barang = JSON.parse(localStorage.getItem("barang")) || [];
 
 function simpan() {
-  let nama = document.getElementById("nama").value;
-  let harga = parseInt(document.getElementById("harga").value);
-  let stok = parseInt(document.getElementById("stok").value);
+  let nama = document.getElementById("nama").value.trim();
+  let harga = parseInt(document.getElementById("harga").value) || 0;
+  let stok = parseInt(document.getElementById("stok").value) || 0;
 
-  if (!nama || !harga || !stok) {
-    alert("Isi semua data!");
+  if (nama === "") {
+    alert("Nama wajib diisi!");
     return;
   }
 
@@ -54,6 +54,7 @@ function simpan() {
 
   tampil();
 
+  // reset
   document.getElementById("nama").value = "";
   document.getElementById("harga").value = "";
   document.getElementById("stok").value = "";
