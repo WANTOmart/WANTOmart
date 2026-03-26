@@ -1,198 +1,228 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-  <title>WANTOMART ULTRA</title>
-  <style>
-    body { font-family: Arial; padding:20px; background:#f5f5f5; }
-    input, button { padding:8px; margin:5px; }
-    button { cursor:pointer; }
-    table { width:100%; border-collapse:collapse; margin-top:10px; background:white; }
-    th, td { border:1px solid #ccc; padding:8px; text-align:center; }
-    th { background:#333; color:white; }
-    .box { background:white; padding:15px; margin-bottom:20px; border-radius:10px; }
-  </style>
+<meta charset="UTF-8">
+<title>WantoMart ULTRA</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+body { font-family: Arial; padding: 20px; background:#f5f5f5;}
+input, button { padding: 6px; margin: 4px;}
+table { border-collapse: collapse; width: 100%; margin-top:10px;}
+th, td { border:1px solid #ccc; padding:8px; text-align:center;}
+.warning { color:red; font-weight:bold;}
+</style>
 </head>
+
 <body>
 
-<h2>🛒 WANTOMART ULTRA</h2>
+<h2>🛒 WantoMart ULTRA</h2>
 
-<div class="box">
+<!-- ================= TAMBAH BARANG ================= -->
 <h3>Tambah Barang</h3>
-<input id="nama" placeholder="Nama Barang">
+<input id="nama" placeholder="Nama">
 <input id="harga" type="number" placeholder="Harga">
 <input id="stok" type="number" placeholder="Stok">
-<button onclick="simpan()">Simpan</button>
-</div>
+<input id="modal" type="number" placeholder="Modal">
+<button onclick="tambahBarang()">Simpan</button>
 
-<div class="box">
+<!-- ================= DATA BARANG ================= -->
 <h3>Data Barang</h3>
+<button onclick="exportExcel()">Export Excel</button>
+<button onclick="exportPDF()">Export PDF</button>
+
 <table>
 <thead>
 <tr>
 <th>Nama</th>
 <th>Harga</th>
 <th>Stok</th>
-<th>Aksi</th>
+<th>Modal</th>
 </tr>
 </thead>
-<tbody id="tabel"></tbody>
+<tbody id="data-barang"></tbody>
 </table>
-</div>
 
-<div class="box">
+<!-- ================= TRANSAKSI ================= -->
 <h3>Transaksi</h3>
-
-<input id="cari" placeholder="Scan / Nama Barang">
-<button onclick="tambahTransaksi()">Tambah</button>
+<input id="inputTransaksi" placeholder="Nama barang">
+<input id="qty" type="number" value="1">
+<button onclick="handleTambah()">Tambah</button>
 
 <table>
 <thead>
 <tr>
 <th>Nama</th>
-<th>Qty</th>
 <th>Harga</th>
-<th>Subtotal</th>
+<th>Qty</th>
+<th>Total</th>
 <th>Aksi</th>
 </tr>
 </thead>
-<tbody id="keranjang"></tbody>
+<tbody id="data-transaksi"></tbody>
 </table>
 
-<h3>Total: <span id="total">Rp 0</span></h3>
+<h3>Total: Rp <span id="total">0</span></h3>
 
-<input id="bayar" type="number" placeholder="Uang Bayar">
 <button onclick="bayar()">Bayar</button>
-</div>
 
 <script>
-let barang = JSON.parse(localStorage.getItem("barang")) || [];
-let keranjang = [];
+let dataBarang = [];
+let transaksi = [];
 
-function rupiah(x){
-  return "Rp " + x.toLocaleString("id-ID");
+/* ================= LOCAL STORAGE ================= */
+function simpanData() {
+  localStorage.setItem("dataBarang", JSON.stringify(dataBarang));
 }
 
-function simpan(){
+function loadData() {
+  let data = localStorage.getItem("dataBarang");
+  if (data) dataBarang = JSON.parse(data);
+}
+
+/* ================= TAMBAH BARANG ================= */
+function tambahBarang() {
   let nama = document.getElementById("nama").value;
-  let harga = parseInt(document.getElementById("harga").value);
-  let stok = parseInt(document.getElementById("stok").value);
+  let harga = +document.getElementById("harga").value;
+  let stok = +document.getElementById("stok").value;
+  let modal = +document.getElementById("modal").value;
 
-  if(!nama) return alert("Nama kosong!");
+  dataBarang.push({ nama, harga, stok, modal });
 
-  barang.push({nama, harga, stok});
-  localStorage.setItem("barang", JSON.stringify(barang));
-
-  tampilBarang();
+  simpanData();
+  renderDataBarang();
 }
 
-function tampilBarang(){
-  let html = "";
-  barang.forEach((b,i)=>{
-    html += `
-    <tr>
-      <td>${b.nama}</td>
-      <td>${rupiah(b.harga)}</td>
-      <td>${b.stok}</td>
-      <td>
-        <button onclick="hapus(${i})">Hapus</button>
-      </td>
-    </tr>`;
+/* ================= RENDER BARANG ================= */
+function renderDataBarang() {
+  let el = document.getElementById("data-barang");
+  el.innerHTML = "";
+
+  dataBarang.forEach(b => {
+    let warning = b.stok <= 3 ? '<span class="warning">⚠️</span>' : '';
+
+    el.innerHTML += `
+      <tr>
+        <td>${b.nama}</td>
+        <td>${b.harga}</td>
+        <td>${b.stok} ${warning}</td>
+        <td>${b.modal}</td>
+      </tr>
+    `;
   });
-  document.getElementById("tabel").innerHTML = html;
 }
 
-function hapus(i){
-  barang.splice(i,1);
-  localStorage.setItem("barang", JSON.stringify(barang));
-  tampilBarang();
-}
+/* ================= TAMBAH TRANSAKSI ================= */
+function handleTambah() {
+  let input = document.getElementById("inputTransaksi").value;
+  let qty = +document.getElementById("qty").value;
 
-function tambahTransaksi(){
-  let keyword = document.getElementById("cari").value.toLowerCase();
+  let barang = dataBarang.find(b => b.nama === input);
 
-  let item = barang.find(b => b.nama.toLowerCase().includes(keyword));
+  if (!barang) return alert("Barang tidak ditemukan!");
+  if (barang.stok < qty) return alert("Stok tidak cukup!");
 
-  if(!item) return alert("Barang tidak ditemukan");
+  let existing = transaksi.find(t => t.nama === barang.nama);
 
-  let existing = keranjang.find(k => k.nama === item.nama);
-
-  if(existing){
-    existing.qty++;
-  }else{
-    keranjang.push({...item, qty:1});
+  if (existing) {
+    existing.qty += qty;
+  } else {
+    transaksi.push({ nama: barang.nama, harga: barang.harga, qty });
   }
 
-  tampilKeranjang();
+  barang.stok -= qty;
+
+  simpanData();
+  renderDataBarang();
+  renderTransaksi();
 }
 
-function tampilKeranjang(){
-  let html="";
-  let total=0;
+/* ================= RENDER TRANSAKSI ================= */
+function renderTransaksi() {
+  let el = document.getElementById("data-transaksi");
+  el.innerHTML = "";
 
-  keranjang.forEach((k,i)=>{
-    let sub = k.qty * k.harga;
+  let total = 0;
+
+  transaksi.forEach((t, i) => {
+    let sub = t.harga * t.qty;
     total += sub;
 
-    html += `
-    <tr>
-      <td>${k.nama}</td>
-      <td>${k.qty}</td>
-      <td>${rupiah(k.harga)}</td>
-      <td>${rupiah(sub)}</td>
-      <td><button onclick="hapusItem(${i})">❌</button></td>
-    </tr>`;
+    el.innerHTML += `
+      <tr>
+        <td>${t.nama}</td>
+        <td>${t.harga}</td>
+        <td>${t.qty}</td>
+        <td>${sub}</td>
+        <td><button onclick="hapusItem(${i})">Hapus</button></td>
+      </tr>
+    `;
   });
 
-  document.getElementById("keranjang").innerHTML = html;
-  document.getElementById("total").innerText = rupiah(total);
+  document.getElementById("total").innerText = total;
 }
 
-function hapusItem(i){
-  keranjang.splice(i,1);
-  tampilKeranjang();
+/* ================= HAPUS ITEM ================= */
+function hapusItem(index) {
+  let item = transaksi[index];
+
+  let barang = dataBarang.find(b => b.nama === item.nama);
+  if (barang) barang.stok += item.qty;
+
+  transaksi.splice(index, 1);
+
+  simpanData();
+  renderDataBarang();
+  renderTransaksi();
 }
 
-function bayar(){
-  let total = keranjang.reduce((s,k)=>s + k.qty*k.harga,0);
-  let uang = parseInt(document.getElementById("bayar").value);
+/* ================= BAYAR ================= */
+function bayar() {
+  if (transaksi.length === 0) return alert("Belum ada transaksi");
 
-  if(uang < total) return alert("Uang kurang!");
+  alert("Transaksi berhasil!");
 
-  let kembali = uang - total;
-
-  cetakStruk(total, uang, kembali);
-
-  keranjang = [];
-  tampilKeranjang();
+  transaksi = [];
+  renderTransaksi();
 }
 
-function cetakStruk(total, bayar, kembali){
-  let win = window.open("", "", "width=300");
+/* ================= EXPORT EXCEL ================= */
+function exportExcel() {
+  let csv = "Nama,Harga,Stok,Modal\n";
 
-  let isi = `
-  <h3 style="text-align:center">WANTOMART</h3>
-  <hr>`;
-
-  keranjang.forEach(k=>{
-    isi += `
-    <div>${k.nama} x${k.qty}</div>
-    <div>${rupiah(k.qty*k.harga)}</div>`;
+  dataBarang.forEach(b => {
+    csv += `${b.nama},${b.harga},${b.stok},${b.modal}\n`;
   });
 
-  isi += `
-  <hr>
-  <div>Total: ${rupiah(total)}</div>
-  <div>Bayar: ${rupiah(bayar)}</div>
-  <div>Kembali: ${rupiah(kembali)}</div>
-  <hr>
-  <div style="text-align:center">Terima Kasih 🙏</div>
-  `;
+  let blob = new Blob([csv], { type: "text/csv" });
+  let url = URL.createObjectURL(blob);
 
-  win.document.write(isi);
-  win.print();
+  let a = document.createElement("a");
+  a.href = url;
+  a.download = "data_barang.csv";
+  a.click();
 }
 
-tampilBarang();
+/* ================= EXPORT PDF ================= */
+function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  let doc = new jsPDF();
+
+  doc.text("Data Barang", 10, 10);
+
+  let y = 20;
+  dataBarang.forEach(b => {
+    doc.text(`${b.nama} | ${b.harga} | ${b.stok}`, 10, y);
+    y += 10;
+  });
+
+  doc.save("data_barang.pdf");
+}
+
+/* ================= INIT ================= */
+loadData();
+renderDataBarang();
 </script>
 
 </body>
